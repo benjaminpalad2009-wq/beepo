@@ -1,0 +1,174 @@
+name: Build Beepo APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Prepare the Android project
+        run: |
+          mkdir -p www
+          cp index.html www/index.html
+          cat > package.json <<'EOF'
+          {
+            "name": "jarvis",
+            "version": "1.0.0",
+            "private": true,
+            "dependencies": {
+              "@capacitor/core": "^6.0.0",
+              "@capacitor/android": "^6.0.0",
+              "@capacitor/filesystem": "^6.0.0",
+              "@capacitor/share": "^6.0.0",
+              "@capacitor-community/text-to-speech": "5.1.0"
+            },
+            "devDependencies": {
+              "@capacitor/cli": "^6.0.0"
+            }
+          }
+          EOF
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.jarvis.assistant",
+            "appName": "Beepo",
+            "webDir": "www",
+            "server": { "androidScheme": "https" }
+          }
+          EOF
+          npm install --legacy-peer-deps
+          npx cap add android
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <queries>\n        <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>\n    </queries>\n</manifest>#' $M
+          npx cap sync android
+
+      - name: Apply the Beepo icon and launch screen
+        continue-on-error: true
+        run: |
+          python3 -c "import PIL" 2>/dev/null || python3 -m pip install --quiet --user --break-system-packages pillow || python3 -m pip install --quiet --user pillow
+          cat > "$RUNNER_TEMP/icons.py" <<'PY'
+          import os, re, sys
+          from PIL import Image, ImageDraw
+
+          DARK = (16, 19, 24, 255)
+          LIGHT = (244, 245, 247, 255)
+          TEAL = (95, 196, 227, 255)
+          TEAL_DEEP = (15, 107, 136, 255)
+          TEAL_EAR = (47, 138, 166, 255)
+          DEEP_EAR = (11, 79, 102, 255)
+
+          def mark(d, color, ear, eye_bg=(255, 255, 255, 255)):
+              """A round face with floppy ears, drawn 4x and scaled down so the edges are smooth."""
+              k = 4
+              S = d * k
+              big = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+              u = S / 120.0
+              def ell(img, cx, cy, rx, ry, ang, fill):
+                  layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+                  ImageDraw.Draw(layer).ellipse([(cx - rx) * u, (cy - ry) * u, (cx + rx) * u, (cy + ry) * u], fill=fill)
+                  layer = layer.rotate(ang, center=(cx * u, cy * u), resample=Image.BICUBIC)
+                  img.alpha_composite(layer)
+              ell(big, 27, 45, 14, 25, -24, ear)
+              ell(big, 93, 45, 14, 25, 24, ear)
+              g = ImageDraw.Draw(big)
+              g.ellipse([18 * u, 22 * u, 102 * u, 106 * u], fill=color)
+              for cx in (38, 82):
+                  g.ellipse([(cx - 6) * u, 70 * u, (cx + 6) * u, 82 * u], fill=(255, 159, 178, 140))
+              dark = (16, 19, 24, 255)
+              for cx in (45, 75):
+                  g.ellipse([(cx - 7.5) * u, 54.5 * u, (cx + 7.5) * u, 69.5 * u], fill=eye_bg)
+                  g.ellipse([(cx + 1 - 4) * u, 59 * u, (cx + 1 + 4) * u, 67 * u], fill=dark)
+              g.ellipse([54.5 * u, 70 * u, 65.5 * u, 78 * u], fill=dark)
+              g.arc([52 * u, 76 * u, 60 * u, 86 * u], 0, 180, fill=dark, width=int(2.6 * u))
+              g.arc([60 * u, 76 * u, 68 * u, 86 * u], 0, 180, fill=dark, width=int(2.6 * u))
+              return big.resize((d, d), Image.LANCZOS)
+
+          def place(base, color, frac, ear=None):
+              n = base.size[0]
+              d = max(8, int(n * frac))
+              m = mark(d, color, ear or TEAL_EAR)
+              base.alpha_composite(m, ((n - d) // 2, (base.size[1] - d) // 2))
+
+          def launcher(n, shape):
+              img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+              mask = Image.new("L", (n * 4, n * 4), 0)
+              g = ImageDraw.Draw(mask)
+              if shape == "round":
+                  g.ellipse([0, 0, n * 4 - 1, n * 4 - 1], fill=255)
+              else:
+                  g.rounded_rectangle([0, 0, n * 4 - 1, n * 4 - 1], radius=int(n * 4 * 0.22), fill=255)
+              mask = mask.resize((n, n), Image.LANCZOS)
+              bg = Image.new("RGBA", (n, n), DARK)
+              img.paste(bg, (0, 0), mask)
+              place(img, TEAL, 0.64)
+              return img
+
+          def foreground(n):
+              img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+              place(img, TEAL, 0.56)   # inside the adaptive-icon safe zone
+              return img
+
+          def splash(w, h, night):
+              img = Image.new("RGBA", (w, h), DARK if night else LIGHT)
+              d = max(24, int(min(w, h) * 0.30))
+              m = mark(d, TEAL if night else TEAL_DEEP, TEAL_EAR if night else DEEP_EAR)
+              img.alpha_composite(m, ((w - d) // 2, (h - d) // 2))
+              return img
+
+          def run(res):
+              n = 0
+              for root, _, files in os.walk(res):
+                  for f in files:
+                      p = os.path.join(root, f)
+                      if not f.endswith(".png"):
+                          continue
+                      with Image.open(p) as im:
+                          w, h = im.size
+                      if f == "ic_launcher.png":
+                          launcher(w, "square").save(p); n += 1
+                      elif f == "ic_launcher_round.png":
+                          launcher(w, "round").save(p); n += 1
+                      elif f == "ic_launcher_foreground.png":
+                          foreground(w).save(p); n += 1
+                      elif f == "splash.png":
+                          splash(w, h, "night" in root).convert("RGB").save(p); n += 1
+              bg = os.path.join(res, "values", "ic_launcher_background.xml")
+              if os.path.exists(bg):
+                  t = open(bg).read()
+                  open(bg, "w").write(re.sub(r"#[0-9A-Fa-f]{6,8}", "#101318", t)); n += 1
+              print("replaced", n, "files")
+
+          if __name__ == "__main__":
+              run(sys.argv[1])
+          PY
+          python3 "$RUNNER_TEMP/icons.py" android/app/src/main/res
+
+      - name: Build the APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../beepo.apk
+
+      - name: Publish the APK as a download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: beepo-${{ github.run_number }}
+          name: Beepo ${{ github.run_number }}
+          files: beepo.apk
