@@ -1,0 +1,1559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Beepo</title>
+<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c0e11" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+
+/* Layout: slim top bar, one scrolling conversation on a quiet dotted ground, composer pinned below.
+   A single settings panel opens under the bar. Neutral greys, near-black buttons, one teal accent. */
+:root {
+  --bg: #f4f5f7;
+  --dot: #dde1e6;
+  --surface: #ffffff;
+  --soft: #eceff2;
+  --line: #e1e5ea;
+  --fg: #101318;
+  --muted: #69727d;
+  --accent: #0f6b88;
+  --primary: #101318;
+  --primary-fg: #ffffff;
+  --user-bg: #e6eaee;
+  --danger: #b42318;
+  --display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c0e11;
+    --dot: #1b2026;
+    --surface: #14171b;
+    --soft: #1b1f24;
+    --line: #252a30;
+    --fg: #e9ecef;
+    --muted: #8b949e;
+    --accent: #5fc4e3;
+    --primary: #e9ecef;
+    --primary-fg: #0c0e11;
+    --user-bg: #1f252b;
+    --danger: #ff9a85;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c0e11;
+  --dot: #1b2026;
+  --surface: #14171b;
+  --soft: #1b1f24;
+  --line: #252a30;
+  --fg: #e9ecef;
+  --muted: #8b949e;
+  --accent: #5fc4e3;
+  --primary: #e9ecef;
+  --primary-fg: #0c0e11;
+  --user-bg: #1f252b;
+  --danger: #ff9a85;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+html { background: var(--bg); }
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+* { box-sizing: border-box; }
+button, textarea, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app {
+  height: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* top bar */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 4px; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+.brand h1 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 1.08rem; letter-spacing: -0.01em; }
+.model { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.tools { display: flex; gap: 2px; flex: none; }
+.icon {
+  width: 36px; height: 36px; display: grid; place-items: center; padding: 0; cursor: pointer;
+  background: transparent; border: 0; border-radius: 10px; color: var(--muted);
+}
+.icon:hover { background: var(--soft); color: var(--fg); }
+.icon svg { width: 19px; height: 19px; }
+
+/* settings panel */
+.panel {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px 16px 0; display: flex; flex-direction: column; gap: 20px;
+}
+.panel > * { flex: none; }
+.panel .bar {
+  position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: auto -16px 0; padding: 12px 16px; background: var(--surface); border-top: 1px solid var(--line);
+}
+.panel .bar .ver { margin-left: auto; font-family: var(--mono); font-size: 0.66rem; color: var(--muted); }
+.app.settings-open .composer, .app.settings-open .foot { display: none; }
+.group { display: grid; gap: 10px; }
+.group h2, .more summary {
+  margin: 0; font-family: var(--mono); font-size: 0.68rem; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+.more summary { cursor: pointer; list-style: none; }
+.more summary::-webkit-details-marker { display: none; }
+.more summary::after { content: " +"; }
+.more[open] summary::after { content: " \2212"; }
+.more[open] { display: grid; gap: 10px; }
+.fields { display: grid; gap: 10px; }
+.panel label { display: grid; gap: 4px; font-size: 0.8rem; color: var(--muted); }
+.panel label.chk { display: flex; align-items: center; gap: 8px; color: var(--fg); font-size: 0.9rem; }
+.panel input[type="text"], .panel input[type="password"], .panel input[type="search"], .panel textarea, .panel select {
+  width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font-size: 0.95rem; color: var(--fg);
+}
+.panel textarea { min-height: 84px; resize: vertical; }
+.panel input[type="range"] { width: 100%; padding: 0; }
+.app.settings-open .log { display: none; }
+.hint { margin: 0; font-size: 0.78rem; color: var(--muted); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.primary { background: var(--primary); color: var(--primary-fg); border: 0; border-radius: 9px; padding: 8px 16px; font-weight: 600; cursor: pointer; }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 9px; padding: 8px 14px; font-size: 0.9rem; cursor: pointer; color: var(--fg); }
+.ghost:hover { border-color: var(--accent); }
+
+/* conversation */
+.log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-block: 6px; }
+.hello { margin: auto 0 8px; display: grid; gap: 12px; }
+.hello h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: clamp(1.6rem, 6vw, 2.2rem); line-height: 1.1; letter-spacing: -0.02em; text-wrap: balance; }
+.hello p { margin: 0; color: var(--muted); max-width: 44ch; }
+.chips { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.chip {
+  text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; font-size: 0.9rem; cursor: pointer; color: var(--fg);
+}
+.chip:hover { border-color: var(--accent); }
+
+.msg { display: flex; flex-direction: column; min-width: 0; }
+.msg.user { align-items: flex-end; }
+.msg.user .body {
+  background: var(--user-bg); color: var(--fg); border-radius: 14px 14px 4px 14px;
+  padding: 8px 13px; max-width: 86%; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.msg.jarvis .body { max-width: 100%; overflow-wrap: anywhere; }
+.body p { margin: 0 0 0.6em; }
+.body p:last-child, .body ul:last-child, .body ol:last-child { margin-bottom: 0; }
+.body ul, .body ol { margin: 0 0 0.6em; padding-left: 1.3em; }
+.body li { margin-bottom: 0.2em; }
+.body code { font-family: var(--mono); font-size: 0.88em; background: var(--soft); border-radius: 4px; padding: 1px 5px; }
+.note { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+.err { font-size: 0.88rem; color: var(--danger); background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--danger); border-radius: 10px; padding: 10px 12px; }
+
+.dots { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); font-size: 0.9rem; }
+.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite ease-in-out; }
+.dots i:nth-child(2) { animation-delay: 0.15s; }
+.dots i:nth-child(3) { animation-delay: 0.3s; }
+.dots span.lbl { margin-left: 6px; }
+@keyframes pulse { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .dots i { animation: none; opacity: 0.7; } }
+
+/* file cards */
+.file {
+  display: flex; align-items: center; gap: 12px; margin-top: 10px; max-width: 420px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+}
+.ficon {
+  flex: none; width: 42px; height: 42px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--soft); color: var(--accent); font-family: var(--mono); font-size: 0.7rem; font-weight: 500; letter-spacing: 0.04em;
+}
+.fmeta { flex: 1; min-width: 0; }
+.fname { font-weight: 600; font-size: 0.92rem; overflow-wrap: anywhere; }
+.fsub { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); overflow-wrap: anywhere; }
+
+/* composer */
+.composer {
+  display: flex; align-items: flex-end; gap: 8px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  padding: 6px 6px 6px 14px; box-shadow: 0 1px 2px rgba(16, 19, 24, 0.05);
+}
+.composer:focus-within { border-color: var(--accent); }
+.composer textarea {
+  flex: 1; min-width: 0; border: 0; background: transparent; resize: none;
+  max-height: 140px; padding: 8px 0; outline: none; line-height: 1.45; font-size: 1rem;
+}
+.send {
+  flex: none; width: 36px; height: 36px; display: grid; place-items: center; padding: 0; cursor: pointer;
+  border: 0; border-radius: 11px; background: var(--primary); color: var(--primary-fg);
+}
+.send svg { width: 18px; height: 18px; }
+.foot { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); text-align: center; }
+.foot:empty { display: none; }
+
+
+/* logo and voice */
+.pup { display: block; overflow: visible; }
+.pup .disc { fill: var(--accent); }
+.pup .ear { fill: color-mix(in srgb, var(--accent) 68%, #000); }
+.logo { width: 30px; height: 30px; flex: none; }
+.send.quiet { background: transparent; color: var(--muted); }
+.send.quiet:hover { color: var(--fg); }
+.voice {
+  position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+  background: var(--bg); padding: 24px 24px calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.voice[hidden] { display: none; }
+.vpup { background: none; border: 0; padding: 0; cursor: pointer; width: min(62vw, 260px); height: min(62vw, 260px); -webkit-tap-highlight-color: transparent; }
+.vpup .pup { width: 100%; height: 100%; }
+.vpup .face { transform-box: fill-box; transform-origin: center; transform: scale(calc(1 + var(--lvl, 0) * 0.10)); transition: transform 90ms linear; }
+.vpup .ear { transform-box: fill-box; transition: transform .35s ease; }
+.vpup .earL { transform-origin: 80% 85%; } .vpup .earR { transform-origin: 20% 85%; }
+.vstatus { font-family: var(--display); font-weight: 600; font-size: 1.25rem; min-height: 1.6em; }
+.vcap { color: var(--muted); max-width: 32ch; text-align: center; min-height: 3.2em; line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.vend { position: absolute; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--fg); display: grid; place-items: center; cursor: pointer; }
+.vend svg { width: 22px; height: 22px; }
+.v-listen .vpup .ear { transform: rotate(0deg); }
+.v-listen .earL { transform: rotate(-8deg); } .v-listen .earR { transform: rotate(8deg); }
+.v-think .vpup { animation: vtilt 1.6s ease-in-out infinite; }
+.v-speak .earL { animation: flapL .5s ease-in-out infinite alternate; } .v-speak .earR { animation: flapR .5s ease-in-out infinite alternate; }
+.v-speak .mouth { animation: chat .28s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+.pup .eyes { transform-box: fill-box; transform-origin: center; animation: blink 4.5s infinite; }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+@keyframes vtilt { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes flapL { from { transform: rotate(-10deg); } to { transform: rotate(6deg); } }
+@keyframes flapR { from { transform: rotate(10deg); } to { transform: rotate(-6deg); } }
+@keyframes chat { from { transform: scaleY(1); } to { transform: scaleY(1.9); } }
+@media (prefers-reduced-motion: reduce) { .vpup *, .vpup { animation: none !important; } .pup .eyes { animation: none; } }
+
+/* history */
+.app.history-open .log, .app.history-open .composer, .app.history-open .foot { display: none; }
+.panel input[type="search"] { -webkit-appearance: none; appearance: none; }
+.hlist { display: grid; gap: 2px; align-content: start; }
+.hgroup { margin: 12px 0 2px; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.hgroup:first-child { margin-top: 0; }
+.hitem { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
+.hitem:last-child { border-bottom: 0; }
+.hmain { flex: 1; min-width: 0; display: grid; gap: 2px; text-align: left; padding: 10px 0; background: none; border: 0; cursor: pointer; color: var(--fg); }
+.ht { font-weight: 500; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hitem.cur .ht { color: var(--accent); }
+.hm { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+.hdel { flex: none; background: none; border: 0; padding: 10px 4px; font-family: var(--mono); font-size: 0.7rem; color: var(--muted); cursor: pointer; }
+.hdel:hover, .hdel.sure { color: var(--danger); }
+.hmain:active, .hdel:active { opacity: 0.6; }
+
+/* states and details */
+button { touch-action: manipulation; }
+.icon:active, .ghost:active, .chip:active, .act:active { opacity: 0.6; }
+.chk input { accent-color: var(--accent); }
+.send:disabled { opacity: 0.3; cursor: default; }
+.acts { display: flex; gap: 14px; margin-top: 2px; }
+.act { background: none; border: 0; padding: 6px 0; font-family: var(--mono); font-size: 0.7rem; color: var(--muted); cursor: pointer; }
+.act:hover { color: var(--fg); }
+.body h4 { margin: 0.9em 0 0.3em; font-size: 0.95rem; font-weight: 600; }
+.body h4:first-child { margin-top: 0; }
+.body pre { margin: 0 0 0.7em; padding: 10px 12px; background: var(--soft); border-radius: 10px; overflow-x: auto; }
+.body pre code { background: none; padding: 0; font-size: 0.82rem; white-space: pre; }
+.body a { color: var(--accent); text-underline-offset: 2px; }
+.body hr { border: 0; border-top: 1px solid var(--line); margin: 0.9em 0; }
+.err { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.err .act { flex: none; color: var(--fg); font-family: var(--body); font-size: 0.85rem; font-weight: 600; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.err .act:hover { border-color: var(--danger); }
+.hint.bad { color: var(--danger); }
+.toast {
+  position: fixed; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 6px);
+  background: var(--primary); color: var(--primary-fg); font-size: 0.82rem;
+  padding: 7px 14px; border-radius: 999px; max-width: calc(100% - 32px); text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.18s, transform 0.18s; z-index: 5;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="pup" viewBox="0 0 120 120">
+    <g class="ears">
+      <ellipse class="ear earL" cx="27" cy="45" rx="14" ry="25" transform="rotate(24 27 45)" fill="#0b4f66"/>
+      <ellipse class="ear earR" cx="93" cy="45" rx="14" ry="25" transform="rotate(-24 93 45)" fill="#0b4f66"/>
+    </g>
+    <g class="face">
+      <circle class="disc" cx="60" cy="64" r="42" fill="#0f6b88"/>
+      <circle cx="38" cy="76" r="6" fill="#ff9fb2" opacity=".55"/><circle cx="82" cy="76" r="6" fill="#ff9fb2" opacity=".55"/>
+      <g class="eyes">
+        <circle cx="45" cy="62" r="7.5" fill="#fff"/><circle cx="75" cy="62" r="7.5" fill="#fff"/>
+        <circle cx="46" cy="63" r="4" fill="#101318"/><circle cx="76" cy="63" r="4" fill="#101318"/>
+        <circle cx="47.4" cy="61.4" r="1.4" fill="#fff"/><circle cx="77.4" cy="61.4" r="1.4" fill="#fff"/>
+      </g>
+      <ellipse cx="60" cy="74" rx="5.5" ry="4" fill="#101318"/>
+      <path class="mouth" d="M52 81q4 5 8 0q4 5 8 0" fill="none" stroke="#101318" stroke-width="2.6" stroke-linecap="round"/>
+    </g>
+  </symbol>
+</svg>
+<main class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <svg class="pup logo" aria-hidden="true"><use href="#pup"/></svg>
+      <h1>Beepo</h1>
+      <span class="model" id="sub"></span>
+    </div>
+    <div class="tools">
+      <button class="icon" id="newBtn" type="button" aria-label="New chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="icon" id="historyBtn" type="button" aria-label="Chat history" aria-expanded="false" aria-controls="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></button>
+      <button class="icon" id="settingsBtn" type="button" aria-label="Settings" aria-expanded="false" aria-controls="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
+    </div>
+  </header>
+
+  <section class="panel" id="settings" hidden>
+    <div class="group">
+      <h2>Profile</h2>
+      <label for="pName">Name
+        <input id="pName" type="text" maxlength="60" autocomplete="off" placeholder="What Beepo should call you">
+      </label>
+      <label for="pTone">Personality
+        <select id="pTone">
+          <option value="friendly">Friendly</option>
+          <option value="concise">Concise</option>
+          <option value="playful">Playful</option>
+          <option value="professional">Professional</option>
+        </select>
+      </label>
+      <p class="hint" id="toneHint"></p>
+      <label for="pNotes">Notes for Beepo
+        <textarea id="pNotes" maxlength="1500" placeholder="Work hours, time zone, people you mention, how you like answers"></textarea>
+      </label>
+    </div>
+
+    <div class="group">
+      <h2>AI provider</h2>
+      <label for="sProv">Provider
+        <select id="sProv">
+          <option value="gemini">Gemini (Google)</option>
+          <option value="cerebras">Cerebras</option>
+        </select>
+      </label>
+      <div class="fields" id="gemBox">
+        <label for="sKey">Gemini API key
+          <input id="sKey" type="password" autocomplete="off" placeholder="Paste your key">
+        </label>
+        <label for="sModel">Model
+          <input id="sModel" type="text" autocomplete="off" placeholder="gemini-3.5-flash">
+        </label>
+      </div>
+      <div class="fields" id="cerBox" hidden>
+        <label for="sCKey">Cerebras API key
+          <input id="sCKey" type="password" autocomplete="off" placeholder="Paste your key">
+        </label>
+        <label for="sCModel">Model
+          <input id="sCModel" type="text" autocomplete="off" placeholder="gpt-oss-120b">
+        </label>
+      </div>
+      <label class="chk" for="sAuto"><input id="sAuto" type="checkbox"> Switch provider when one hits its free limit</label>
+      <label class="chk" for="sShow"><input id="sShow" type="checkbox"> Show keys</label>
+      <p class="hint">Free keys: aistudio.google.com/apikey for Gemini, cloud.cerebras.ai for Cerebras. Keys stay on this phone. Google may use free-tier Gemini chats to improve its products.</p>
+    </div>
+
+    <details class="more">
+      <summary>Voice (optional)</summary>
+      <label class="chk" for="sRead"><input id="sRead" type="checkbox"> Read replies aloud</label>
+      <label for="sLang">Voice language
+        <input id="sLang" type="text" autocomplete="off" placeholder="en-US (Filipino: fil-PH)">
+      </label>
+      <label for="sVoice">Voice
+        <select id="sVoice"><option value="">Phone default</option></select>
+      </label>
+      <label for="sPitch">Depth (lower sounds deeper)
+        <input id="sPitch" type="range" min="0.5" max="1.2" step="0.05" value="0.85">
+      </label>
+      <div class="row"><button class="ghost" id="vPlay" type="button">Hear this voice</button></div>
+    </details>
+
+    <p class="hint bad" id="sErr" role="alert" hidden></p>
+    <div class="bar">
+      <button class="primary" id="sSave" type="button">Save</button>
+      <button class="ghost" id="sClose" type="button">Close</button>
+      <span class="ver" id="ver"></span>
+    </div>
+  </section>
+
+  <section class="panel" id="history" hidden>
+    <div class="group">
+      <h2>History</h2>
+      <input id="hSearch" type="search" autocomplete="off" placeholder="Search chats" aria-label="Search chats">
+    </div>
+    <div class="hlist" id="hList"></div>
+    <div class="bar">
+      <button class="ghost" id="hClear" type="button">Delete all</button>
+      <button class="primary" id="hClose" type="button">Close</button>
+    </div>
+  </section>
+
+  <section class="log" id="log" aria-live="polite"></section>
+
+  <div class="foot" id="foot"></div>
+  <form class="composer" id="form">
+    <textarea id="input" rows="1" placeholder="Message Beepo" aria-label="Message Beepo" autocomplete="off" autocapitalize="sentences"></textarea>
+    <button class="send quiet" id="mic" type="button" aria-label="Talk to Beepo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    <button class="send" id="send" type="submit" aria-label="Send" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    <button class="send" id="stop" type="button" hidden aria-label="Stop"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg></button>
+  </form>
+  <div class="voice v-listen" id="voice" hidden role="dialog" aria-label="Voice conversation">
+    <button class="vpup" id="vPup" type="button" aria-label="Tap to interrupt or finish talking"><svg class="pup" aria-hidden="true"><use href="#pup"/></svg></button>
+    <div class="vstatus" id="vStatus" aria-live="polite"></div>
+    <div class="vcap" id="vCap"></div>
+    <button class="vend" id="vEnd" type="button" aria-label="End voice conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var store = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+  };
+
+  /* ---------- chats, saved on this phone ---------- */
+  function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function makeChat(t) { return { id: newId(), title: '', created: Date.now(), updated: Date.now(), turns: t || [] }; }
+  var chats = store.get('jarvis.chats', null);
+  var migrated = false;
+  if (!Array.isArray(chats)) {
+    chats = [];
+    var legacy = store.get('jarvis.turns', []);
+    if (Array.isArray(legacy) && legacy.length) { chats.push(makeChat(legacy)); migrated = true; }
+  }
+  chats = chats.filter(function (c) { return c && typeof c === 'object' && typeof c.id === 'string' && Array.isArray(c.turns); });
+  var currentId = store.get('jarvis.current', '');
+  var turns;
+  (function () {
+    var c = chats.filter(function (x) { return x.id === currentId; })[0];
+    if (!c) c = chats.slice().sort(function (a, b) { return (b.updated || 0) - (a.updated || 0); })[0];
+    if (!c) { c = makeChat(); chats.push(c); }
+    currentId = c.id; turns = c.turns;
+    if (store.set('jarvis.chats', chats) && migrated) { try { localStorage.removeItem('jarvis.turns'); } catch (e) {} }
+    store.set('jarvis.current', currentId);
+  })();
+
+  function titleOf(t) {
+    for (var i = 0; i < t.length; i++) {
+      if (t[i].role === 'user') {
+        var x = String(t[i].content).replace(/\s+/g, ' ').trim();
+        return x.length > 48 ? x.slice(0, 47) + '\u2026' : x;
+      }
+    }
+    return '';
+  }
+  function dropOldest() {
+    var best = null;
+    chats.forEach(function (c) { if (c.id !== currentId && (!best || (c.updated || 0) < (best.updated || 0))) best = c; });
+    if (best) chats.splice(chats.indexOf(best), 1);
+    return !!best;
+  }
+  /* Save everything. Pass true when nothing new was said, so the chat keeps its place in the list. */
+  function persist(keepTime) {
+    var c = chats.filter(function (x) { return x.id === currentId; })[0];
+    if (!c) { c = makeChat(); c.id = currentId; chats.push(c); }
+    c.turns = turns;
+    if (turns.length) {
+      if (!keepTime) c.updated = Date.now();
+      if (!c.title) c.title = titleOf(turns);
+    }
+    chats = chats.filter(function (x) { return x.turns.length || x.id === currentId; });
+    while (chats.length > 51 && dropOldest()) {}
+    var ok = store.set('jarvis.chats', chats), trimmed = false;
+    while (!ok && dropOldest()) { trimmed = true; ok = store.set('jarvis.chats', chats); }
+    store.set('jarvis.current', currentId);
+    if (trimmed) toast('Storage is full, so the oldest chats were removed');
+  }
+  var profile = store.get('jarvis.profile', { name: '', notes: '' });
+  var busy = false;
+  var ctl = null;
+
+  var log = $('log'), input = $('input'), sendBtn = $('send'), stopBtn = $('stop');
+
+  /* ---------- file making: PDF and PPTX are built here in the page ---------- */
+  var canFiles = false, made = [];
+
+  function dotsHtml(label) {
+    return '<span class="dots" aria-label="' + esc(label) + '"><i></i><i></i><i></i><span class="lbl">' + esc(label) + '</span></span>';
+  }
+  function ascii(s) {
+    return String(s == null ? '' : s)
+      .replace(/[‘’‛]/g, "'").replace(/[“”]/g, '"')
+      .replace(/[–—]/g, '-').replace(/…/g, '...').replace(/•/g, '-')
+      .replace(/₱/g, 'PHP ').replace(/€/g, 'EUR ')
+      .replace(/[   ]/g, ' ')
+      .replace(/[^\x09\x0A\x20-\x7E¡-ÿ]/g, '?');
+  }
+  function safeName(name, ext) {
+    var base = String(name || 'document').replace(/\.[a-z0-9]+$/i, '').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'document';
+    return base + '.' + ext;
+  }
+  function kb(n) { return n < 1048576 ? Math.max(1, Math.round(n / 1024)) + ' KB' : (n / 1048576).toFixed(1) + ' MB'; }
+
+  function buildPdf(a) {
+    if (!window.jspdf) throw new Error('The PDF library did not load.');
+    var sections = Array.isArray(a.sections) ? a.sections : [];
+    if (!sections.length) throw new Error('sections is required and must be a non-empty list.');
+    var doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+    var W = 210, H = 297, M = 20, maxW = W - 2 * M, y = M;
+    function room(h) { if (y + h > H - M) { doc.addPage(); y = M; } }
+    function para(text, size, style, gap, indent, mark) {
+      doc.setFont('helvetica', style); doc.setFontSize(size);
+      var lh = size * 0.45;
+      var lines = doc.splitTextToSize(ascii(text), maxW - indent);
+      for (var i = 0; i < lines.length; i++) {
+        room(lh);
+        if (i === 0 && mark) doc.text(mark, M + 1, y + lh * 0.8);
+        doc.text(lines[i], M + indent, y + lh * 0.8);
+        y += lh;
+      }
+      y += gap;
+    }
+    para(a.title || 'Document', 22, 'bold', 2, 0);
+    doc.setDrawColor(15, 107, 136); doc.setLineWidth(0.6); doc.line(M, y, W - M, y); y += 7;
+    sections.forEach(function (sec) {
+      if (sec.heading) { room(16); y += 2; para(sec.heading, 14, 'bold', 1.5, 0); }
+      String(sec.body || '').split('\n').forEach(function (ln) {
+        if (!ln.trim()) { y += 2; return; }
+        var m = ln.match(/^\s*[-*]\s+(.*)/);
+        if (m) para(m[1], 11, 'normal', 1, 6, '-'); else para(ln, 11, 'normal', 1.5, 0);
+      });
+    });
+    var n = doc.getNumberOfPages();
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120);
+    for (var p = 1; p <= n; p++) { doc.setPage(p); doc.text(p + ' / ' + n, W - M, H - 10, { align: 'right' }); }
+    return { blob: doc.output('blob'), pages: n };
+  }
+
+  async function buildPptx(a) {
+    if (!window.PptxGenJS) throw new Error('The slides library did not load.');
+    var slides = Array.isArray(a.slides) ? a.slides : [];
+    if (!slides.length) throw new Error('slides is required and must be a non-empty list.');
+    var p = new window.PptxGenJS();
+    p.layout = 'LAYOUT_16x9';
+    p.title = String(a.title || 'Presentation');
+    var ACC = '0F6B88', INK = '14212B';
+    var cover = p.addSlide();
+    cover.background = { color: INK };
+    cover.addShape(p.ShapeType.rect, { x: 0.7, y: 1.75, w: 1.2, h: 0.06, fill: { color: '5FC4E3' }, line: { color: '5FC4E3' } });
+    cover.addText(String(a.title || 'Presentation'), { x: 0.7, y: 1.95, w: 8.6, h: 1.3, fontFace: 'Arial', fontSize: 34, bold: true, color: 'FFFFFF', valign: 'top' });
+    if (a.subtitle) cover.addText(String(a.subtitle), { x: 0.7, y: 3.4, w: 8.6, h: 0.7, fontFace: 'Arial', fontSize: 18, color: '9FD3E4', valign: 'top' });
+    slides.forEach(function (sl) {
+      var s = p.addSlide();
+      s.background = { color: 'FFFFFF' };
+      s.addShape(p.ShapeType.rect, { x: 0, y: 0, w: 0.18, h: 5.625, fill: { color: ACC }, line: { color: ACC } });
+      s.addText(String(sl.title || ''), { x: 0.7, y: 0.35, w: 8.6, h: 0.95, fontFace: 'Arial', fontSize: 28, bold: true, color: INK, valign: 'middle' });
+      var bl = (Array.isArray(sl.bullets) ? sl.bullets : []).map(String).filter(Boolean);
+      if (bl.length) {
+        s.addText(bl.map(function (b) { return { text: b, options: { bullet: true, breakLine: true } }; }), {
+          x: 0.7, y: 1.5, w: 8.6, h: 3.7, fontFace: 'Arial', fontSize: bl.length > 6 ? 16 : 20, color: '33414D', valign: 'top', paraSpaceAfter: 10
+        });
+      }
+      if (sl.notes) s.addNotes(String(sl.notes));
+    });
+    var out = await p.write({ outputType: 'blob' });
+    var blob = out instanceof Blob ? out : new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+    return { blob: blob, count: slides.length + 1 };
+  }
+
+  function register(name, blob, label) {
+    made = made.filter(function (f) { return f.name !== name; });
+    made.push({ name: name, blob: blob, label: label });
+  }
+
+  function fileCard(f) {
+    var c = document.createElement('div'); c.className = 'file';
+    var ic = document.createElement('div'); ic.className = 'ficon'; ic.textContent = f.name.split('.').pop().toUpperCase();
+    var meta = document.createElement('div'); meta.className = 'fmeta';
+    var nm = document.createElement('div'); nm.className = 'fname'; nm.textContent = f.name;
+    var sb = document.createElement('div'); sb.className = 'fsub';
+    var info = f.label + ' · ' + kb(f.blob.size);
+    sb.textContent = info;
+    meta.appendChild(nm); meta.appendChild(sb);
+    var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'primary'; btn.textContent = 'Download';
+    btn.onclick = function () {
+      btn.disabled = true;
+      saveFile({ filename: f.name, data: f.blob }).then(function () {
+        btn.disabled = false; btn.textContent = 'Saved'; sb.textContent = info;
+      }, function (e) {
+        btn.disabled = false;
+        var code = e && e.code;
+        if (code === 'declined') return;
+        sb.textContent = code === 'rate_limited' ? 'Another save prompt is open. Try again in a moment.' : 'Saving is not available in this view.';
+      });
+    };
+    c.appendChild(ic); c.appendChild(meta); c.appendChild(btn);
+    return c;
+  }
+
+  function attachFiles(body) {
+    var names = made.map(function (f) { return f.name; });
+    made.forEach(function (f) { body.parentNode.appendChild(fileCard(f)); });
+    return names;
+  }
+
+  /* File blocks written by Beepo in his reply become real files here. */
+  function splitFiles(t) {
+    var files = [];
+    var re = /<<<FILE[ \t]+(pdf|pptx)[ \t]*:?[ \t]*([^\n]*)\n([\s\S]*?)\n?>>>/gi;
+    var text = t.replace(re, function (_, k, n, raw) { files.push({ kind: k.toLowerCase(), name: n.trim(), raw: raw }); return ''; });
+    var cut = false, i = text.indexOf('<<<FILE');
+    if (i >= 0) { text = text.slice(0, i); cut = true; }
+    text = text.replace(/```[a-z]*\s*```/g, '').replace(/```[a-z]*\s*$/, '').trim();
+    return { text: text, files: files, cut: cut };
+  }
+  function visibleWhileStreaming(t) {
+    var i = t.indexOf('<<<FILE');
+    if (i < 0) return { text: t, building: false };
+    return { text: t.slice(0, i).replace(/```[a-z]*\s*$/, '').trim(), building: true };
+  }
+  function parsePdfSpec(name, raw) {
+    var title = '', sections = [], cur = null;
+    raw.split('\n').forEach(function (ln) {
+      var m;
+      if ((m = ln.match(/^#\s+(.*)/)) && !title) { title = m[1].trim(); return; }
+      if ((m = ln.match(/^##\s+(.*)/))) { cur = { heading: m[1].trim(), body: '' }; sections.push(cur); return; }
+      if (!cur) { cur = { heading: '', body: '' }; sections.push(cur); }
+      cur.body += ln + '\n';
+    });
+    return { title: title || name || 'Document', sections: sections };
+  }
+  function parsePptxSpec(name, raw) {
+    var title = '', subtitle = '', slides = [], cur = null;
+    raw.split('\n').forEach(function (ln) {
+      var m;
+      if ((m = ln.match(/^#\s+(.*)/)) && !title) { title = m[1].trim(); return; }
+      if (!cur && (m = ln.match(/^subtitle:\s*(.*)/i))) { subtitle = m[1].trim(); return; }
+      if ((m = ln.match(/^##\s+(.*)/))) { cur = { title: m[1].trim(), bullets: [], notes: '' }; slides.push(cur); return; }
+      if (!cur) return;
+      if ((m = ln.match(/^notes:\s*(.*)/i))) { cur.notes += (cur.notes ? ' ' : '') + m[1].trim(); return; }
+      if ((m = ln.match(/^\s*[-*]\s+(.*)/))) { cur.bullets.push(m[1].trim()); return; }
+      if (ln.trim()) cur.bullets.push(ln.trim());
+    });
+    return { title: title || name || 'Presentation', subtitle: subtitle, slides: slides };
+  }
+  async function buildFiles(files) {
+    var failed = [];
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      try {
+        if (f.kind === 'pdf') {
+          var ps = parsePdfSpec(f.name, f.raw);
+          var r = buildPdf(ps);
+          register(safeName(f.name || ps.title, 'pdf'), r.blob, 'PDF, ' + r.pages + (r.pages > 1 ? ' pages' : ' page'));
+        } else {
+          var ss = parsePptxSpec(f.name, f.raw);
+          var r2 = await buildPptx(ss);
+          register(safeName(f.name || ss.title, 'pptx'), r2.blob, 'PPTX, ' + r2.count + ' slides');
+        }
+      } catch (err) { failed.push(f.name || f.kind); }
+    }
+    return failed;
+  }
+
+  /* ---------- text formatting (escape first, then light markdown) ---------- */
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function inline(s) {
+    var codes = [];
+    s = s.replace(/`([^`\n]+)`/g, function (_, c) { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000'; });
+    s = esc(s)
+      .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)"'<>]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>');
+    return s.replace(/\u0000(\d+)\u0000/g, function (_, i) { return '<code>' + esc(codes[+i]) + '</code>'; });
+  }
+  function fmt(t) {
+    var lines = String(t).split('\n'), html = '', list = null, m, fence = null;
+    function close() { if (list) { html += '</' + list + '>'; list = null; } }
+    function pre() { html += '<pre><code>' + esc(fence.join('\n')) + '</code></pre>'; fence = null; }
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i];
+      if (fence !== null) {
+        if (/^\s*```/.test(ln)) pre(); else fence.push(ln);
+        continue;
+      }
+      if (/^\s*```/.test(ln)) { close(); fence = []; continue; }
+      if (/^\s*([-*_])\1{2,}\s*$/.test(ln)) { close(); html += '<hr>'; continue; }
+      if ((m = ln.match(/^\s*[-*]\s+(.*)/))) {
+        if (list !== 'ul') { close(); html += '<ul>'; list = 'ul'; }
+        html += '<li>' + inline(m[1]) + '</li>';
+      } else if ((m = ln.match(/^\s*\d+[.)]\s+(.*)/))) {
+        if (list !== 'ol') { close(); html += '<ol>'; list = 'ol'; }
+        html += '<li>' + inline(m[1]) + '</li>';
+      } else if (!ln.trim()) {
+        close();
+      } else if ((m = ln.match(/^#{1,4}\s+(.*)/))) {
+        close(); html += '<h4>' + inline(m[1]) + '</h4>';
+      } else {
+        close(); html += '<p>' + inline(ln) + '</p>';
+      }
+    }
+    if (fence !== null) pre();
+    close();
+    return html;
+  }
+
+  /* ---------- header + greeting ---------- */
+  function today() {
+    return new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  function greeting() {
+    var h = new Date().getHours();
+    var part = h < 5 ? 'Working late' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+    return profile.name ? part + ', ' + profile.name + '.' : part + '.';
+  }
+  function renderSub() { $('sub').textContent = getProvider() === 'cerebras' ? getCModel() : getModel(); }
+
+  var STARTERS = [
+    ['Talk it through', 'I want to think something through with you: '],
+    ['Plan my day', 'Help me plan my day. Here is what I have on and what I need to get done: '],
+    ['Draft a message', 'Draft a message for me. Who it is to and what I need to say: '],
+    ['Make a PDF', 'Make me a PDF about: ']
+  ];
+
+  function renderHello() {
+    var wrap = document.createElement('div');
+    wrap.className = 'hello';
+    wrap.innerHTML = '<h2>' + esc(greeting()) + '</h2><p>Talk things through, plan, draft, or turn notes into a PDF or slide deck.</p>';
+    var chips = document.createElement('div');
+    chips.className = 'chips';
+    STARTERS.forEach(function (s) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.textContent = s[0];
+      b.onclick = function () { input.value = s[1]; grow(); input.focus(); };
+      chips.appendChild(b);
+    });
+    wrap.appendChild(chips);
+    log.appendChild(wrap);
+  }
+
+  function addMsg(role, content, html) {
+    var d = document.createElement('div');
+    d.className = 'msg ' + (role === 'user' ? 'user' : 'jarvis');
+    var body = document.createElement('div');
+    body.className = 'body';
+    if (role === 'user') body.textContent = content; else body.innerHTML = html != null ? html : fmt(content);
+    d.appendChild(body);
+    log.appendChild(d);
+    return body;
+  }
+
+  function renderAll() {
+    log.innerHTML = '';
+    if (!turns.length) renderHello();
+    turns.forEach(function (t) {
+      var b = addMsg(t.role, t.content);
+      if (t.files && t.files.length) {
+        var n = document.createElement('div'); n.className = 'note';
+        n.textContent = 'Created: ' + t.files.join(', ') + '. Ask Beepo to make it again for a fresh download.';
+        b.parentNode.appendChild(n);
+      }
+      if (t.role === 'assistant') addActions(b, t.content);
+    });
+    scroll(true);
+  }
+
+  var stick = true;
+  log.addEventListener('scroll', function () { stick = log.scrollHeight - log.scrollTop - log.clientHeight < 80; });
+  function scroll(force) { if (force || stick) log.scrollTop = log.scrollHeight; }
+
+  function copyText(t) {
+    return new Promise(function (resolve) {
+      function fallback() {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+          document.body.appendChild(ta); ta.select();
+          var ok = document.execCommand('copy'); ta.remove(); resolve(!!ok);
+        } catch (e) { resolve(false); }
+      }
+      try { navigator.clipboard.writeText(t).then(function () { resolve(true); }, fallback); } catch (e) { fallback(); }
+    });
+  }
+  function addActions(body, text) {
+    var host = body.parentNode;
+    if (!text || !host || host.querySelector('.acts')) return;
+    var row = document.createElement('div'); row.className = 'acts';
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'act'; b.textContent = 'Copy';
+    b.onclick = function () {
+      copyText(text).then(function (ok) {
+        b.textContent = ok ? 'Copied' : 'Could not copy';
+        setTimeout(function () { b.textContent = 'Copy'; }, 1600);
+      });
+    };
+    row.appendChild(b); host.appendChild(row);
+  }
+  var toastTimer = null;
+  function toast(t) {
+    var el = $('toast');
+    el.textContent = t; el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2200);
+  }
+
+  /* ---------- Beepo's personality and standing instructions ---------- */
+  var TONES = {
+    friendly: {
+      hint: 'Warm and curious. Talks things through like a thoughtful friend.',
+      prompt: 'Talk the way a thoughtful, well-read friend would: warm, curious and direct, with a dry sense of humor that shows up naturally and never gets in the way. ' +
+        'Match the person\'s tone and energy: casual when they are casual, focused when they are working. ' +
+        'Answer first, then add depth only when it helps. Keep simple replies short, and give complex or personal questions the room they need. ' +
+        'Ask at most one follow-up question, and only when it moves things forward.'
+    },
+    concise: {
+      hint: 'Short and direct. Answers first, no small talk.',
+      prompt: 'Be brief and efficient. Lead with the answer or the next step, skip small talk, and keep replies to a few sentences unless the person asks for more. Wit is rare and dry.'
+    },
+    playful: {
+      hint: 'Witty and relaxed, with some banter.',
+      prompt: 'Be playful, witty and relaxed, like a funny friend who is also very good at things. Banter and light teasing are welcome when the mood fits, ' +
+        'but stay helpful and accurate, and drop the jokes when the person is stressed or the topic is serious. Keep replies lively and not too long.'
+    },
+    professional: {
+      hint: 'Formal and structured, like a careful colleague.',
+      prompt: 'Be polished, precise and calm, like a careful colleague. Use a neutral, courteous tone, organize longer answers clearly, and avoid slang and jokes.'
+    }
+  };
+  function getTone() { var t = store.get('jarvis.tone', 'friendly'); return TONES[t] ? t : 'friendly'; }
+
+  function rules() {
+    var now = new Date().toLocaleString([], { dateStyle: 'full', timeStyle: 'short' });
+    var s = 'You are Beepo, a personal AI assistant and someone to talk with. You are a friendly little robot pup at heart: loyal, upbeat and curious. Let that show as warmth, never as a gimmick, so no barking sounds or pet puns unless the person plays along first. ' + TONES[getTone()].prompt + ' ' +
+      'Be honest: give your real view when asked and explain why, disagree politely when you think the person is wrong, never flatter, say you are not sure instead of guessing, and never invent facts, quotes or sources. ' +
+      'You can talk about anything: ideas, advice, decisions, writing, learning, plans, or just chat. When someone is struggling, listen first and be kind before offering solutions; if someone may be in danger, respond with care and encourage them to contact local emergency services or someone they trust. ' +
+      'You work only inside this chat: you cannot see their calendar, email, files or the web, cannot send messages and cannot set reminders. ' +
+      'If asked to do any of that, say so in one line and offer the closest useful thing, such as a draft they can send or a schedule they can copy. Never pretend an action happened. ' +
+      'Treat what the person tells you in this conversation as what you know about them; do not invent facts about their life.\n' +
+      'Current local date and time for the person: ' + now + '.' +
+      '\nFormatting: this is a phone chat, so write in natural prose with short paragraphs. Use a short list only when the content really is a list. Use **bold** sparingly. No tables, no headings, and no emoji unless the person uses them first.';
+    if (readAloud() || voice.on) s += ' Your replies are spoken aloud in a live voice conversation, so write the way you would speak: short natural sentences, usually one to four of them, and no lists, symbols or markdown.';
+    if (canFiles) {
+      s += '\nYou CAN create PDF documents and PowerPoint slide decks. This is a real ability of this app: you write a file block and the app turns it into a file the person can save. ' +
+        'Do this whenever the person asks for a file, PDF, deck, slides or presentation, or when a document clearly beats a chat reply. ' +
+        'Reply with one short sentence, then the block, with nothing after it. Do not put the block in a code fence. Use exactly this format.\n' +
+        'For a PDF:\n<<<FILE pdf: short-file-name\n# Document title\n## Section heading\nParagraph text. A line starting with "- " is a bullet.\n>>>\n' +
+        'For slides:\n<<<FILE pptx: short-file-name\n# Deck title\nsubtitle: one line\n## Slide title\n- short bullet\n- short bullet\nnotes: optional speaker notes\n>>>\n' +
+        'Inside a block use plain text only, with no bold or other markdown. Write the full real content yourself instead of asking more questions than you need. ' +
+        'Unless told otherwise, make decks 6 to 10 slides with 3 to 5 short bullets each. The app shows the Save button by itself, so never explain the block format and never paste the file contents into the reply. ' +
+        'You cannot make Word or Excel files; offer a PDF or deck instead.';
+    } else {
+      s += '\nYou cannot make files right now. If the person wants a document, write its content in the chat instead.';
+    }
+    if (profile.name) s += '\nThe person goes by: ' + profile.name + '.';
+    if (profile.notes) s += '\nStanding notes the person wants you to keep in mind:\n' + profile.notes;
+    return s;
+  }
+
+  function errorCopy(code) {
+    switch (code) {
+      case 'no_key': return 'Add the API key for your chosen provider in Settings first.';
+      case 'bad_key': return 'The API key was not accepted. Open Settings and paste it again.';
+      case 'bad_model': return 'That model name was not found. Open Settings and check the model name.';
+      case 'rate_limited': return 'You hit the free usage limit for now. Wait a minute, or add a second provider in Settings.';
+      case 'network': return 'Cannot reach the AI service. Check your internet connection and try again.';
+      case 'refused': return 'The AI declined that request. Try rewording it.';
+      case 'empty_completion': return 'No answer came back. Try rephrasing.';
+      case 'bad_request': return 'The AI service rejected the request. Start a new chat and try again.';
+      default: return 'The connection dropped before Beepo finished. Send your message again.';
+    }
+  }
+
+  /* ---------- sending ---------- */
+  function setBusy(b) { busy = b; sendBtn.hidden = b; stopBtn.hidden = !b; }
+
+  async function send(text, again) {
+    text = (text || '').trim();
+    if (busy || !text) return;
+    var chat = turns;
+    if (!again) {
+      if (!chat.length) log.innerHTML = '';
+      chat.push({ role: 'user', content: text });
+      persist();
+      addMsg('user', text);
+      input.value = ''; grow();
+    }
+
+    var body = addMsg('jarvis', '', dotsHtml('Thinking'));
+    scroll(true);
+    setBusy(true);
+    ctl = new AbortController();
+    made = [];
+    var replyText = '';
+
+    var recent = chat.slice(-30);
+    while (recent.length && recent[0].role !== 'user') recent.shift();
+    var convo = [{ role: 'user', content: rules() }].concat(recent.map(function (t) {
+      return { role: t.role, content: t.content + (t.files && t.files.length ? '\n\n[Files created and offered for download: ' + t.files.join(', ') + ']' : '') };
+    }));
+    var opts = {
+      signal: ctl.signal,
+      onText: function (u) {
+        var v = visibleWhileStreaming(u.text);
+        body.innerHTML = (v.text ? fmt(v.text) : '') + (v.building ? dotsHtml('Building your file') : '');
+        scroll();
+      }
+    };
+    try {
+      var res = await aiCall(convo, opts);
+      var sp = splitFiles(res.text);
+      var failed = canFiles ? await buildFiles(sp.files) : sp.files.map(function (f) { return f.name || f.kind; });
+      var shownText = sp.text || (made.length ? 'Here you go.' : '');
+      body.innerHTML = fmt(shownText);
+      if (res.note) { var sn = document.createElement('div'); sn.className = 'note'; sn.textContent = res.note; body.appendChild(sn); }
+      if (res.truncated || sp.cut) {
+        var n = document.createElement('div'); n.className = 'note';
+        n.textContent = sp.cut ? 'The file was cut off before it finished. Ask Beepo to make it again.' : 'Cut short. Ask Beepo to continue.'; body.appendChild(n);
+      }
+      if (failed.length) {
+        var fe = document.createElement('div'); fe.className = 'err';
+        fe.textContent = 'Could not build ' + failed.join(', ') + '. Ask Beepo to try again.';
+        body.parentNode.appendChild(fe);
+      }
+      chat.push({ role: 'assistant', content: shownText || res.text, files: attachFiles(body) });
+      addActions(body, shownText);
+      replyText = shownText;
+    } catch (e) {
+      var partial = e && e.text && splitFiles(e.text).text;
+      if (partial) {
+        body.innerHTML = fmt(partial);
+        chat.push({ role: 'assistant', content: partial });
+        addActions(body, partial);
+        if (e.code !== 'cancelled') {
+          var n2 = document.createElement('div'); n2.className = 'note';
+          n2.textContent = 'Interrupted.'; body.appendChild(n2);
+        }
+      } else if (body.parentNode) {
+        body.parentNode.remove();
+      }
+      if ((!e || e.code !== 'cancelled') && chat === turns) {
+        var er = document.createElement('div'); er.className = 'err';
+        var em = document.createElement('span'); em.textContent = errorCopy(e && e.code); er.appendChild(em);
+        if (!partial && chat.length && chat[chat.length - 1].role === 'user') {
+          var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'act'; rb.textContent = 'Try again';
+          rb.onclick = function () { er.remove(); submitText(chat[chat.length - 1].content, true); };
+          er.appendChild(rb);
+        }
+        log.appendChild(er);
+      }
+    } finally {
+      if (chat.length > 200) chat.splice(0, chat.length - 200);
+      persist(chat !== turns);
+      setBusy(false);
+      ctl = null;
+      scroll();
+    }
+    return replyText;
+  }
+
+  /* ---------- wiring ---------- */
+  function grow() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    sendBtn.disabled = !input.value.trim();
+  }
+  var phone = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  input.addEventListener('input', grow);
+  input.addEventListener('keydown', function (e) {
+    if (phone) return;
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitText(input.value); }
+  });
+  $('form').addEventListener('submit', function (e) { e.preventDefault(); submitText(input.value); });
+  stopBtn.addEventListener('click', function () { if (ctl) ctl.abort(); stopSpeaking(); });
+
+  $('newBtn').addEventListener('click', newChat);
+
+  renderSub();
+  renderAll();
+  grow();
+
+  /* ---------- Gemini ---------- */
+  function getKey() { return store.get('jarvis.key', ''); }
+  function getModel() { return store.get('jarvis.model', '') || 'gemini-3.5-flash'; }
+
+  async function geminiCall(convo, opts) {
+    var key = getKey();
+    if (!key) throw { code: 'no_key', message: 'No API key' };
+    var contents = [];
+    convo.slice(1).forEach(function (m) {
+      var role = m.role === 'assistant' ? 'model' : 'user';
+      var last = contents[contents.length - 1];
+      if (last && last.role === role) last.parts[0].text += '\n\n' + m.content;
+      else contents.push({ role: role, parts: [{ text: m.content }] });
+    });
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(getModel()) + ':streamGenerateContent?alt=sse';
+    var resp;
+    try {
+      resp = await fetch(url, {
+        method: 'POST',
+        signal: opts && opts.signal,
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: convo[0].content }] }, contents: contents })
+      });
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw { code: 'cancelled', text: '' };
+      throw { code: 'network', message: String(e) };
+    }
+    if (!resp.ok) {
+      var msg = '';
+      try { var j = await resp.json(); msg = (j.error && j.error.message) || ''; } catch (e) {}
+      var code = resp.status === 429 ? 'rate_limited' : resp.status === 404 ? 'bad_model'
+        : (resp.status === 401 || resp.status === 403 || (resp.status === 400 && /api key/i.test(msg))) ? 'bad_key'
+        : resp.status === 400 ? 'bad_request' : 'upstream_error';
+      throw { code: code, message: msg };
+    }
+    var text = '', truncated = false, blocked = false, changed = false, buf = '';
+    function eat(line) {
+      line = line.trim();
+      if (line.indexOf('data:') !== 0) return;
+      var d = line.slice(5).trim();
+      if (!d) return;
+      var j; try { j = JSON.parse(d); } catch (e) { return; }
+      var c = j.candidates && j.candidates[0];
+      if (c && c.content && c.content.parts) c.content.parts.forEach(function (p) { if (p.text && !p.thought) { text += p.text; changed = true; } });
+      if (c && c.finishReason === 'MAX_TOKENS') truncated = true;
+      if (j.promptFeedback && j.promptFeedback.blockReason) blocked = true;
+    }
+    function feed(chunk) {
+      buf += chunk;
+      var lines = buf.split('\n');
+      buf = lines.pop();
+      lines.forEach(eat);
+      if (changed && opts && opts.onText) { changed = false; opts.onText({ text: text }); }
+    }
+    try {
+      if (resp.body && resp.body.getReader) {
+        var reader = resp.body.getReader(), dec = new TextDecoder();
+        for (;;) {
+          var r = await reader.read();
+          if (r.done) break;
+          feed(dec.decode(r.value, { stream: true }));
+        }
+        feed('\n');
+      } else {
+        feed((await resp.text()) + '\n');
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw { code: 'cancelled', text: text };
+      throw { code: 'upstream_error', text: text };
+    }
+    if (!text) throw { code: blocked ? 'refused' : 'empty_completion' };
+    return { text: text, truncated: truncated };
+  }
+
+  /* ---------- Cerebras, provider choice and automatic switch ---------- */
+  function getProvider() { return store.get('jarvis.provider', '') === 'cerebras' ? 'cerebras' : 'gemini'; }
+  function getCKey() { return store.get('jarvis.ckey', ''); }
+  function getCModel() { return store.get('jarvis.cmodel', '') || 'gpt-oss-120b'; }
+  function autoSwitch() { return store.get('jarvis.auto', true) !== false; }
+  function hasKey(p) { return !!(p === 'cerebras' ? getCKey() : getKey()); }
+  function providerName(p) { return p === 'cerebras' ? 'Cerebras' : 'Gemini'; }
+
+  async function cerebrasCall(convo, opts) {
+    var key = getCKey();
+    if (!key) throw { code: 'no_key', message: 'No API key' };
+    var messages = [{ role: 'system', content: convo[0].content }];
+    convo.slice(1).forEach(function (m) {
+      var role = m.role === 'assistant' ? 'assistant' : 'user';
+      var last = messages[messages.length - 1];
+      if (last.role === role) last.content += '\n\n' + m.content;
+      else messages.push({ role: role, content: m.content });
+    });
+    var url = 'https://api.cerebras.ai/v1/chat/completions';
+    var headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key };
+    var payload = { model: getCModel(), messages: messages };
+    var H = plugin('CapacitorHttp');
+    var aborted = new Promise(function (_, rej) {
+      var sig = opts && opts.signal;
+      if (!sig) return;
+      if (sig.aborted) rej({ code: 'cancelled', text: '' });
+      sig.addEventListener('abort', function () { rej({ code: 'cancelled', text: '' }); });
+    });
+    aborted.catch(function () {});
+    var status = 0, data = null;
+    try {
+      if (H) {
+        var r = await Promise.race([H.request({ url: url, method: 'POST', headers: headers, data: payload, connectTimeout: 15000, readTimeout: 90000 }), aborted]);
+        status = r.status; data = r.data;
+        if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) {} }
+      } else {
+        var resp = await Promise.race([fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(payload), signal: opts && opts.signal }), aborted]);
+        status = resp.status;
+        try { data = await resp.json(); } catch (e) { data = null; }
+      }
+    } catch (e) {
+      if (e && e.code === 'cancelled') throw e;
+      if (e && e.name === 'AbortError') throw { code: 'cancelled', text: '' };
+      throw { code: 'network', message: String((e && e.message) || e) };
+    }
+    if (status < 200 || status >= 300) {
+      var msg = (data && data.error && (data.error.message || data.error)) || (data && data.message) || '';
+      var code = status === 429 ? 'rate_limited' : status === 404 ? 'bad_model'
+        : (status === 401 || status === 403) ? 'bad_key' : status === 400 ? 'bad_request' : 'upstream_error';
+      throw { code: code, message: String(msg) };
+    }
+    var c = data && data.choices && data.choices[0];
+    var text = c && c.message && c.message.content ? String(c.message.content) : '';
+    text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    if (!text) throw { code: 'empty_completion' };
+    if (opts && opts.onText) opts.onText({ text: text });
+    return { text: text, truncated: !!(c && c.finish_reason === 'length') };
+  }
+
+  function callProvider(p, convo, opts) {
+    var c = convo.slice();
+    c[0] = { role: 'user', content: convo[0].content +
+      '\nIdentity: you are Beepo, an AI assistant app. Right now the model behind you is ' + (p === 'cerebras' ? getCModel() : getModel()) +
+      ', served by ' + providerName(p) + '. If asked who or what you are, say that plainly, and do not claim to be any other product or model.' };
+    return p === 'cerebras' ? cerebrasCall(c, opts) : geminiCall(c, opts);
+  }
+
+  async function aiCall(convo, opts) {
+    var p = getProvider(), o = p === 'gemini' ? 'cerebras' : 'gemini';
+    try { return await callProvider(p, convo, opts); }
+    catch (e) {
+      if (e && e.code === 'rate_limited' && !e.text && autoSwitch() && hasKey(o)) {
+        var r = await callProvider(o, convo, opts);
+        r.note = providerName(p) + ' hit its free limit, so ' + providerName(o) + ' answered.';
+        return r;
+      }
+      throw e;
+    }
+  }
+
+  /* ---------- saving files: share sheet in the app, normal download in a browser ---------- */
+  function blobToBase64(blob) {
+    return new Promise(function (res, rej) {
+      var r = new FileReader();
+      r.onload = function () { res(String(r.result).split(',')[1]); };
+      r.onerror = rej;
+      r.readAsDataURL(blob);
+    });
+  }
+  function saveFile(req) {
+    var cap = window.Capacitor, P = cap && cap.Plugins;
+    var native = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
+    if (native && P && P.Filesystem && P.Share) {
+      return blobToBase64(req.data).then(function (b64) {
+        return P.Filesystem.writeFile({ path: req.filename, data: b64, directory: 'CACHE' });
+      }).then(function (r) {
+        return P.Share.share({ title: req.filename, files: [r.uri], dialogTitle: 'Save or open ' + req.filename });
+      }).then(function () { return { status: 'saved' }; }, function (e) {
+        if (/cancel/i.test(String((e && e.message) || e))) throw { code: 'declined' };
+        throw { code: 'unavailable', message: String((e && e.message) || e) };
+      });
+    }
+    return new Promise(function (resolve, reject) {
+      try {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(req.data); a.download = req.filename;
+        document.body.appendChild(a); a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        resolve({ status: 'saved' });
+      } catch (e) { reject({ code: 'unavailable' }); }
+    });
+  }
+
+  /* ---------- reading replies aloud (optional) ---------- */
+  var fullVoices = [], baseFoot = '';
+  function setStatus(t) { $('foot').textContent = t || baseFoot; }
+  function isNative() { var c = window.Capacitor; return !!(c && c.isNativePlatform && c.isNativePlatform()); }
+  function plugin(n) { return isNative() && window.Capacitor.Plugins ? window.Capacitor.Plugins[n] : null; }
+  function vLang() { return store.get('jarvis.lang', '') || 'en-US'; }
+  function readAloud() { return !!store.get('jarvis.read', false); }
+  function getPitch() { var p = Number(store.get('jarvis.pitch', 0.85)); return (p >= 0.5 && p <= 1.5) ? p : 0.85; }
+
+  async function loadVoices() {
+    var T = plugin('TextToSpeech'), list = [];
+    try {
+      if (T && T.getSupportedVoices) { var r = await T.getSupportedVoices(); list = (r && r.voices) || []; }
+      else if (window.speechSynthesis) list = window.speechSynthesis.getVoices().map(function (v) { return { name: v.name, lang: v.lang }; });
+    } catch (e) {}
+    fullVoices = list;
+    var sel = $('sVoice');
+    if (!sel) return;
+    var prefix = vLang().toLowerCase().split('-')[0];
+    sel.innerHTML = '';
+    var d = document.createElement('option'); d.value = ''; d.textContent = 'Phone default'; sel.appendChild(d);
+    var n = 0;
+    list.forEach(function (v) {
+      if (String(v.lang || '').toLowerCase().indexOf(prefix) !== 0) return;
+      n++;
+      var o = document.createElement('option'); o.value = v.name; o.textContent = 'Voice ' + n + ' - ' + v.name + ' (' + v.lang + ')';
+      sel.appendChild(o);
+    });
+    var saved = store.get('jarvis.voice', '');
+    sel.value = saved;
+    if (sel.value !== saved) sel.value = '';
+  }
+
+  function cleanForSpeech(t) {
+    return String(t || '').replace(/```[\s\S]*?```/g, ' ').replace(/[*`#_>]/g, '')
+      .replace(/^\s*[-•]\s+/gm, '').replace(/\s+/g, ' ').trim().slice(0, 1800);
+  }
+  async function speak(text, over) {
+    text = cleanForSpeech(text);
+    if (!text) return;
+    sendBtn.hidden = true; stopBtn.hidden = false;
+    try {
+      var T = plugin('TextToSpeech');
+      var vName = over ? over.voice : store.get('jarvis.voice', '');
+      var pitch = over ? over.pitch : getPitch();
+      if (T) {
+        if (!fullVoices.length) await loadVoices();
+        var opts = { text: text, lang: vLang(), rate: 1.0, pitch: pitch, volume: 1.0, category: 'ambient' };
+        var idx = -1;
+        fullVoices.forEach(function (v, i) { if (v.name === vName) idx = i; });
+        if (vName && idx >= 0) opts.voice = idx;
+        await T.speak(opts);
+      } else if (window.speechSynthesis) {
+        await new Promise(function (res) {
+          var u = new SpeechSynthesisUtterance(text);
+          u.lang = vLang(); u.pitch = pitch; u.onend = res; u.onerror = res;
+          var found = window.speechSynthesis.getVoices().filter(function (v) { return v.name === vName; })[0];
+          if (found) u.voice = found;
+          window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+        });
+      }
+    } catch (e) {}
+    if (!busy) { sendBtn.hidden = false; stopBtn.hidden = true; }
+  }
+  function stopSpeaking() {
+    try {
+      var T = plugin('TextToSpeech');
+      if (T) T.stop(); else if (window.speechSynthesis) window.speechSynthesis.cancel();
+    } catch (e) {}
+  }
+  function submitText(text, again) {
+    return send(text, again).then(function (r) { if (r && readAloud()) return speak(r); });
+  }
+
+
+  /* ---------- voice conversation: you talk, Beepo talks back ---------- */
+  var voice = { on: false, ctx: null, stream: null, proc: null, rec: null };
+  var vEl = $('voice'), micBtn = $('mic');
+  function vSet(state, cap) {
+    vEl.className = 'voice v-' + state;
+    $('vStatus').textContent = { listen: 'Listening', think: 'Thinking', speak: 'Speaking' }[state] || '';
+    if (cap !== undefined) $('vCap').textContent = cap;
+  }
+  function onAudio(e) {
+    var r = voice.rec; if (!r) return;
+    var d = new Float32Array(e.inputBuffer.getChannelData(0));
+    var sum = 0; for (var i = 0; i < d.length; i++) sum += d[i] * d[i];
+    var rms = Math.sqrt(sum / d.length), ms = d.length / voice.ctx.sampleRate * 1000;
+    r.chunks.push(d); r.t += ms;
+    vEl.style.setProperty('--lvl', Math.min(1, rms * 12).toFixed(2));
+    if (r.t <= 450) { r.floor = Math.max(r.floor, rms); return; }
+    var loud = rms > Math.max(0.015, r.floor * 2.5);
+    if (loud) { r.loud += ms; r.quiet = 0; if (!r.started && r.loud >= 150) { r.started = true; r.from = Math.max(0, r.chunks.length - 8); } }
+    else { r.loud = 0; if (r.started) r.quiet += ms; }
+    if (r.started && (r.quiet >= 1300 || r.t > 45000)) r.done(false);
+    else if (!r.started && r.t > 20000) r.done(true);
+  }
+  function listenOnce() {
+    return new Promise(function (resolve) {
+      var r = { chunks: [], t: 0, floor: 0, loud: 0, quiet: 0, started: false, from: 0 };
+      r.done = function (empty) {
+        if (voice.rec !== r) return;
+        voice.rec = null; vEl.style.setProperty('--lvl', 0);
+        if (empty || !r.started) return resolve(null);
+        var parts = r.chunks.slice(r.from), n = 0; parts.forEach(function (c) { n += c.length; });
+        var all = new Float32Array(n), o = 0; parts.forEach(function (c) { all.set(c, o); o += c.length; });
+        resolve(all);
+      };
+      voice.rec = r;
+    });
+  }
+  function toWav16k(f32, rate) {
+    var ratio = rate / 16000, n = Math.floor(f32.length / ratio), out = new Int16Array(n);
+    for (var i = 0; i < n; i++) {
+      var a = Math.floor(i * ratio), b = Math.min(f32.length, Math.floor((i + 1) * ratio)), sum = 0, c = 0;
+      for (var j = a; j < b; j++) { sum += f32[j]; c++; }
+      var v = c ? sum / c : 0; v = Math.max(-1, Math.min(1, v)); out[i] = v < 0 ? v * 32768 : v * 32767;
+    }
+    var buf = new ArrayBuffer(44 + out.length * 2), dv = new DataView(buf);
+    function w(o, t) { for (var k = 0; k < t.length; k++) dv.setUint8(o + k, t.charCodeAt(k)); }
+    w(0, 'RIFF'); dv.setUint32(4, 36 + out.length * 2, true); w(8, 'WAVE'); w(12, 'fmt '); dv.setUint32(16, 16, true);
+    dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, 16000, true); dv.setUint32(28, 32000, true);
+    dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); w(36, 'data'); dv.setUint32(40, out.length * 2, true);
+    for (var m = 0; m < out.length; m++) dv.setInt16(44 + m * 2, out[m], true);
+    var bytes = new Uint8Array(buf), bin = '';
+    for (var p = 0; p < bytes.length; p += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(p, p + 8192));
+    return btoa(bin);
+  }
+  async function transcribe(f32, rate) {
+    var key = getKey();
+    if (!key) throw { code: 'no_key' };
+    var resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(getModel()) + ':generateContent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [
+        { text: 'Transcribe this audio exactly as spoken, in the language spoken. Output only the words, with normal punctuation. If there is no clear speech, output nothing.' },
+        { inline_data: { mime_type: 'audio/wav', data: toWav16k(f32, rate) } }] }] })
+    });
+    if (!resp.ok) throw { code: resp.status === 429 ? 'rate_limited' : (resp.status === 401 || resp.status === 403) ? 'bad_key' : 'upstream_error' };
+    var j = await resp.json(), t = '';
+    var c = j.candidates && j.candidates[0];
+    if (c && c.content && c.content.parts) c.content.parts.forEach(function (p) { if (p.text && !p.thought) t += p.text; });
+    return t.trim();
+  }
+  async function voiceLoop() {
+    var idle = 0;
+    while (voice.on) {
+      vSet('listen', '');
+      var pcm = await listenOnce();
+      if (!voice.on) break;
+      if (!pcm) { if (++idle >= 2) { toast('Voice paused. Tap the mic to talk again.'); break; } continue; }
+      idle = 0;
+      vSet('think', '');
+      var text = '';
+      try { text = await transcribe(pcm, voice.ctx.sampleRate); }
+      catch (e) {
+        toast(e && e.code === 'rate_limited' ? 'Gemini is rate limited right now. Try again in a minute.' : e && e.code === 'bad_key' ? 'Gemini key was refused. Check it in Settings.' : 'Could not hear that. Check your connection.');
+        if (e && (e.code === 'bad_key' || e.code === 'rate_limited')) break;
+        continue;
+      }
+      if (!voice.on) break;
+      if (!text) continue;
+      vSet('think', text);
+      var reply = await send(text);
+      if (!voice.on) break;
+      if (!reply) { toast('Something went wrong. Check the chat.'); break; }
+      vSet('speak', reply);
+      await speak(reply);
+    }
+    voiceStop();
+  }
+  async function voiceStart() {
+    if (voice.on) return;
+    if (!getKey()) { toast('Voice needs a Gemini key. Add it in Settings.'); openSettings(); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast('This phone cannot record audio in the app.'); return; }
+    try {
+      voice.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    } catch (e) { toast('Microphone is blocked. Allow it in the phone\'s app settings for Beepo.'); return; }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    voice.ctx = new AC(); try { await voice.ctx.resume(); } catch (e) {}
+    var src = voice.ctx.createMediaStreamSource(voice.stream);
+    voice.proc = voice.ctx.createScriptProcessor(4096, 1, 1);
+    var mute = voice.ctx.createGain(); mute.gain.value = 0;
+    src.connect(voice.proc); voice.proc.connect(mute); mute.connect(voice.ctx.destination);
+    voice.proc.onaudioprocess = onAudio;
+    voice.on = true; closeSettings(); closeHistory();
+    vEl.hidden = false; vSet('listen', '');
+    voiceLoop();
+  }
+  function voiceStop() {
+    if (!voice.on && vEl.hidden) return;
+    voice.on = false;
+    if (voice.rec) voice.rec.done(true);
+    if (ctl) ctl.abort(); stopSpeaking();
+    try { if (voice.proc) { voice.proc.onaudioprocess = null; voice.proc.disconnect(); } } catch (e) {}
+    try { if (voice.stream) voice.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    try { if (voice.ctx) voice.ctx.close(); } catch (e) {}
+    voice.proc = voice.stream = voice.ctx = null;
+    vEl.hidden = true;
+  }
+  micBtn.addEventListener('click', voiceStart);
+  $('vEnd').addEventListener('click', voiceStop);
+  $('vPup').addEventListener('click', function () {
+    if (vEl.classList.contains('v-speak')) stopSpeaking();
+    else if (vEl.classList.contains('v-listen') && voice.rec && voice.rec.started) voice.rec.done(false);
+  });
+
+  /* ---------- history ---------- */
+  var hPanel = $('history'), hBtn = $('historyBtn'), hList = $('hList'), hSearch = $('hSearch'), appEl = $('app');
+  function dayStart(ts) { var d = new Date(ts); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
+  function daysAgo(ts) { return Math.round((dayStart(Date.now()) - dayStart(ts)) / 864e5); }
+  function groupOf(ts) { var n = daysAgo(ts); return n <= 0 ? 'Today' : n === 1 ? 'Yesterday' : n < 7 ? 'Previous 7 days' : 'Earlier'; }
+  function whenOf(ts) {
+    var n = daysAgo(ts), d = new Date(ts);
+    if (n <= 0) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (n === 1) return 'Yesterday';
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+  function startFresh() { var c = makeChat(); chats.push(c); currentId = c.id; turns = c.turns; }
+  function stopWork() { if (ctl) ctl.abort(); stopSpeaking(); }
+
+  function newChat() {
+    stopWork();
+    closeSettings(); closeHistory();
+    if (turns.length) { persist(true); startFresh(); persist(true); renderAll(); }
+    input.focus();
+  }
+  function openChat(id) {
+    var c = chats.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    if (id !== currentId) {
+      stopWork();
+      persist(true);
+      currentId = id; turns = c.turns;
+      persist(true);
+      renderAll();
+    }
+    closeHistory();
+  }
+  function deleteChat(id) {
+    chats = chats.filter(function (x) { return x.id !== id; });
+    if (id === currentId) { stopWork(); startFresh(); renderAll(); }
+    persist(true);
+    renderHistory();
+  }
+  function deleteAll() {
+    stopWork();
+    chats = []; startFresh();
+    persist(true); renderAll(); renderHistory();
+  }
+
+  function historyItem(c) {
+    var row = document.createElement('div'); row.className = 'hitem' + (c.id === currentId ? ' cur' : '');
+    var main = document.createElement('button'); main.type = 'button'; main.className = 'hmain';
+    var t = document.createElement('span'); t.className = 'ht'; t.textContent = c.title || titleOf(c.turns) || 'New chat';
+    var m = document.createElement('span'); m.className = 'hm';
+    var n = c.turns.length;
+    m.textContent = n + (n === 1 ? ' message' : ' messages') + ' · ' + whenOf(c.updated || c.created || 0) + (c.id === currentId ? ' · open now' : '');
+    main.appendChild(t); main.appendChild(m);
+    main.addEventListener('click', function () { openChat(c.id); });
+    var del = document.createElement('button'); del.type = 'button'; del.className = 'hdel'; del.textContent = 'Delete';
+    del.setAttribute('aria-label', 'Delete chat: ' + (t.textContent || 'untitled'));
+    var timer = null;
+    del.addEventListener('click', function () {
+      if (del.classList.contains('sure')) { clearTimeout(timer); deleteChat(c.id); return; }
+      del.classList.add('sure'); del.textContent = 'Confirm';
+      timer = setTimeout(function () { del.classList.remove('sure'); del.textContent = 'Delete'; }, 2500);
+    });
+    row.appendChild(main); row.appendChild(del);
+    return row;
+  }
+  function renderHistory() {
+    var q = hSearch.value.trim().toLowerCase();
+    var all = chats.filter(function (c) { return c.turns.length; });
+    var list = all;
+    if (q) list = all.filter(function (c) {
+      if ((c.title || '').toLowerCase().indexOf(q) >= 0) return true;
+      return c.turns.some(function (t) { return String(t.content).toLowerCase().indexOf(q) >= 0; });
+    });
+    list.sort(function (a, b) { return (b.updated || 0) - (a.updated || 0); });
+    hList.innerHTML = '';
+    $('hClear').hidden = !all.length;
+    if (!list.length) {
+      var e = document.createElement('p'); e.className = 'hint';
+      e.textContent = q ? 'No chats match your search.' : 'No saved chats yet. Your conversations will appear here.';
+      hList.appendChild(e);
+      return;
+    }
+    var last = '';
+    list.forEach(function (c) {
+      var g = groupOf(c.updated || c.created || 0);
+      if (g !== last) { var h = document.createElement('div'); h.className = 'hgroup'; h.textContent = g; hList.appendChild(h); last = g; }
+      hList.appendChild(historyItem(c));
+    });
+  }
+  function openHistory() {
+    closeSettings();
+    hPanel.hidden = false; hBtn.setAttribute('aria-expanded', 'true'); appEl.classList.add('history-open');
+    hSearch.value = ''; renderHistory(); hPanel.scrollTop = 0;
+  }
+  function closeHistory() {
+    hPanel.hidden = true; hBtn.setAttribute('aria-expanded', 'false'); appEl.classList.remove('history-open');
+    scroll(true);
+  }
+  hBtn.addEventListener('click', function () { if (hPanel.hidden) openHistory(); else closeHistory(); });
+  $('hClose').addEventListener('click', closeHistory);
+  hSearch.addEventListener('input', renderHistory);
+  var clearTimer = null;
+  $('hClear').addEventListener('click', function () {
+    var b = $('hClear');
+    if (b.dataset.sure) { clearTimeout(clearTimer); delete b.dataset.sure; b.textContent = 'Delete all'; deleteAll(); return; }
+    b.dataset.sure = '1'; b.textContent = 'Tap again to delete all';
+    clearTimer = setTimeout(function () { delete b.dataset.sure; b.textContent = 'Delete all'; }, 3000);
+  });
+
+  /* ---------- settings ---------- */
+  var VERSION = '2026.10.11d';
+  var sPanel = $('settings'), sBtn = $('settingsBtn');
+  $('ver').textContent = 'Beepo ' + VERSION;
+  function syncProvider() {
+    var c = $('sProv').value === 'cerebras';
+    $('gemBox').hidden = c; $('cerBox').hidden = !c;
+  }
+  function syncTone() { $('toneHint').textContent = TONES[$('pTone').value].hint; }
+  function syncShow() { var t = $('sShow').checked ? 'text' : 'password'; $('sKey').type = t; $('sCKey').type = t; }
+  function showErr(t) { var e = $('sErr'); e.textContent = t || ''; e.hidden = !t; }
+  function openSettings() {
+    closeHistory();
+    sPanel.hidden = false; sBtn.setAttribute('aria-expanded', 'true'); appEl.classList.add('settings-open'); sPanel.scrollTop = 0;
+    $('pName').value = profile.name; $('pNotes').value = profile.notes; $('pTone').value = getTone(); syncTone();
+    $('sProv').value = getProvider(); $('sKey').value = getKey(); $('sModel').value = getModel();
+    $('sCKey').value = getCKey(); $('sCModel').value = getCModel(); $('sAuto').checked = autoSwitch();
+    $('sRead').checked = readAloud(); $('sLang').value = store.get('jarvis.lang', ''); $('sPitch').value = getPitch();
+    $('sShow').checked = false; syncShow(); showErr(''); syncProvider(); loadVoices();
+  }
+  function closeSettings() { sPanel.hidden = true; sBtn.setAttribute('aria-expanded', 'false'); appEl.classList.remove('settings-open'); scroll(true); }
+  sBtn.addEventListener('click', function () { if (sPanel.hidden) openSettings(); else closeSettings(); });
+  $('sClose').addEventListener('click', closeSettings);
+  $('sProv').addEventListener('change', function () { syncProvider(); showErr(''); });
+  $('sShow').addEventListener('change', syncShow);
+  $('pTone').addEventListener('change', syncTone);
+  $('sSave').addEventListener('click', function () {
+    var prov = $('sProv').value;
+    var chosenKey = (prov === 'cerebras' ? $('sCKey') : $('sKey')).value.trim();
+    if (!chosenKey) { showErr('Paste a ' + providerName(prov) + ' API key to use it, or choose the other provider.'); return; }
+    profile = { name: $('pName').value.trim(), notes: $('pNotes').value.trim() };
+    store.set('jarvis.profile', profile);
+    store.set('jarvis.tone', $('pTone').value);
+    store.set('jarvis.provider', prov);
+    store.set('jarvis.key', $('sKey').value.trim());
+    store.set('jarvis.model', $('sModel').value.trim());
+    store.set('jarvis.ckey', $('sCKey').value.trim());
+    store.set('jarvis.cmodel', $('sCModel').value.trim());
+    store.set('jarvis.auto', $('sAuto').checked);
+    store.set('jarvis.read', $('sRead').checked);
+    store.set('jarvis.lang', $('sLang').value.trim());
+    store.set('jarvis.voice', $('sVoice').value);
+    store.set('jarvis.pitch', Number($('sPitch').value));
+    closeSettings(); renderSub(); toast('Saved');
+    if (!turns.length) renderAll();
+  });
+  $('vPlay').addEventListener('click', function () {
+    stopSpeaking();
+    speak('Hi, I am Beepo. How can I help you today?', { voice: $('sVoice').value, pitch: Number($('sPitch').value) });
+  });
+
+  /* ---------- start ---------- */
+  canFiles = !!(window.jspdf && window.PptxGenJS);
+  baseFoot = canFiles ? '' : 'The file tools did not load, so Beepo cannot make PDFs or decks right now. Check your connection and reopen the app.';
+  setStatus('');
+  if (!hasKey(getProvider())) openSettings();
+})();
+</script>
+</body>
+</html>
